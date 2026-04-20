@@ -9,7 +9,18 @@ REQUEST_TOKENS_IN: list[int] = []
 REQUEST_TOKENS_OUT: list[int] = []
 ERRORS: Counter[str] = Counter()
 TRAFFIC: int = 0
+IN_FLIGHT: int = 0
 QUALITY_SCORES: list[float] = []
+
+
+def record_request_start() -> None:
+    global IN_FLIGHT
+    IN_FLIGHT += 1
+
+
+def record_request_end() -> None:
+    global IN_FLIGHT
+    IN_FLIGHT = max(0, IN_FLIGHT - 1)
 
 
 def record_request(latency_ms: int, cost_usd: float, tokens_in: int, tokens_out: int, quality_score: float) -> None:
@@ -22,10 +33,8 @@ def record_request(latency_ms: int, cost_usd: float, tokens_in: int, tokens_out:
     QUALITY_SCORES.append(quality_score)
 
 
-
 def record_error(error_type: str) -> None:
     ERRORS[error_type] += 1
-
 
 
 def percentile(values: list[int], p: int) -> float:
@@ -36,10 +45,11 @@ def percentile(values: list[int], p: int) -> float:
     return float(items[idx])
 
 
-
 def snapshot() -> dict:
+    error_total = sum(ERRORS.values())
     return {
         "traffic": TRAFFIC,
+        "in_flight": IN_FLIGHT,
         "latency_p50": percentile(REQUEST_LATENCIES, 50),
         "latency_p95": percentile(REQUEST_LATENCIES, 95),
         "latency_p99": percentile(REQUEST_LATENCIES, 99),
@@ -48,5 +58,7 @@ def snapshot() -> dict:
         "tokens_in_total": sum(REQUEST_TOKENS_IN),
         "tokens_out_total": sum(REQUEST_TOKENS_OUT),
         "error_breakdown": dict(ERRORS),
+        "error_total": error_total,
+        "error_rate_pct": round(error_total / TRAFFIC * 100, 2) if TRAFFIC > 0 else 0.0,
         "quality_avg": round(mean(QUALITY_SCORES), 4) if QUALITY_SCORES else 0.0,
     }
