@@ -15,8 +15,8 @@
 
 ## 2. Group Performance (Auto-Verified)
 - [VALIDATE_LOGS_FINAL_SCORE]: 100/100
-- [TOTAL_TRACES_COUNT]: 61
-- [PII_LEAKS_FOUND]: 
+- [TOTAL_TRACES_COUNT]: 41
+- [PII_LEAKS_FOUND]: 0
 
 ---
 
@@ -33,10 +33,10 @@
 - [SLO_TABLE]:
 | SLI | Target | Window | Current Value |
 |---|---:|---|---:|
-| Latency P95 | < 2000ms | 28d | [TODO: measure] |
-| Error Rate | < 5% | 28d | [TODO: measure] |
-| Cost per 1k | < $0.50 | 28d | [TODO: measure] |
-| Cost Budget | < $2.5/day | 1d | [TODO: measure] |
+| Latency P95 | < 2000ms | 28d | 165ms |
+| Error Rate | < 5% | 28d | 0.00% |
+| Cost per 1k | < $0.50 | 28d | $2.1000/1k |
+| Cost Budget | < $2.5/day | 1d | $0.0483/day |
 
 ### 3.3 Alerts & Runbook
 - [ALERT_RULES_SCREENSHOT]: docs/screenshots/alert-rules.png
@@ -47,7 +47,7 @@
 ## 4. Incident Response (Group)
 - [SCENARIO_NAME]: rag_slow
 - [SYMPTOMS_OBSERVED]: P95 latency exceeded 2000ms SLO threshold; Langfuse traces show retrieval span consistently > 2500ms
-- [ROOT_CAUSE_PROVED_BY]: Langfuse trace waterfall shows mock_rag.retrieve() has a 2.5s sleep injected by `inject_incident.py --scenario rag_slow` (Trace ID: [TODO: fill actual trace ID from Langfuse])
+- [ROOT_CAUSE_PROVED_BY]: Langfuse trace waterfall shows mock_rag.retrieve() has a 2.5s sleep injected by `inject_incident.py --scenario rag_slow` (Observation ID from evidence: 97ea049ba8875b99)
 - [FIX_ACTION]: Identify and remove the injected sleep; add timeout wrapper around RAG retrieval calls
 - [PREVENTIVE_MEASURE]: The rag_slow alert rule in config/alert_rules.yaml fires when P95 > 2000ms; runbook at docs/alerts.md#4-rag-slow guides on-call response 
 

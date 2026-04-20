@@ -2,7 +2,7 @@
 
 ## Validation Scores
 - **VALIDATE_LOGS_FINAL_SCORE**: 100 /100
-- **TOTAL_TRACES_COUNT**: 61
+- **TOTAL_TRACES_COUNT**: 41
 - **PII_LEAKS_FOUND**: 0 (PII scrubbing is activated in logging_config.py)
 
 ---
