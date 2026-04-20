@@ -1,24 +1,31 @@
 from __future__ import annotations
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
+import logging
 from typing import Any
+from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 try:
-    from langfuse.decorators import observe, langfuse_context
-except Exception:  # pragma: no cover
+    from langfuse import observe, get_client
+    _langfuse_client = get_client()
+    logger.info("Langfuse v4 loaded successfully")
+    LANGFUSE_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Langfuse not available: {e}")
+    LANGFUSE_AVAILABLE = False
+
     def observe(*args: Any, **kwargs: Any):
         def decorator(func):
             return func
         return decorator
 
-    class _DummyContext:
-        def update_current_trace(self, **kwargs: Any) -> None:
-            return None
-
-        def update_current_observation(self, **kwargs: Any) -> None:
-            return None
-
-    langfuse_context = _DummyContext()
+    def get_client():
+        return None
 
 
 def tracing_enabled() -> bool:

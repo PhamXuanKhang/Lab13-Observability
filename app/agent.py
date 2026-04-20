@@ -4,10 +4,12 @@ import time
 from dataclasses import dataclass
 
 from . import metrics
-from .mock_llm import FakeLLM
+import os
+from dotenv import load_dotenv
+import openai
 from .mock_rag import retrieve
 from .pii import hash_user_id, summarize_text
-from .tracing import langfuse_context, observe
+from langfuse import observe, get_client   # ✅ Import trực tiếp từ langfuse v4
 
 
 @dataclass
@@ -21,43 +23,65 @@ class AgentResult:
 
 
 class LabAgent:
-    def __init__(self, model: str = "claude-sonnet-4-5") -> None:
-        self.model = model
-        self.llm = FakeLLM(model=model)
+    def __init__(self, model: str = None) -> None:
+        load_dotenv()
+        self.model = model or os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.langfuse = get_client()       # ✅ Dùng get_client() thay vì langfuse_context
 
-    @observe()
+    @observe()                             # ✅ observe() vẫn dùng được trong v4
     def run(self, user_id: str, feature: str, session_id: str, message: str) -> AgentResult:
+
+        # ✅ Cập nhật trace dùng get_client() thay vì langfuse_context
+        # if self.langfuse:
+        #     self.langfuse.update_current_trace(
+        #         user_id=hash_user_id(user_id),
+        #         session_id=session_id,
+        #         tags=["lab", feature, self.model],
+        #     )
+
         started = time.perf_counter()
         docs = retrieve(message)
         prompt = f"Feature={feature}\nDocs={docs}\nQuestion={message}"
-        response = self.llm.generate(prompt)
-        quality_score = self._heuristic_quality(message, response.text, docs)
-        latency_ms = int((time.perf_counter() - started) * 1000)
-        cost_usd = self._estimate_cost(response.usage.input_tokens, response.usage.output_tokens)
 
-        langfuse_context.update_current_trace(
-            user_id=hash_user_id(user_id),
-            session_id=session_id,
-            tags=["lab", feature, self.model],
+        client = openai.OpenAI(api_key=self.api_key)
+        response = client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
         )
-        langfuse_context.update_current_observation(
-            metadata={"doc_count": len(docs), "query_preview": summarize_text(message)},
-            usage_details={"input": response.usage.input_tokens, "output": response.usage.output_tokens},
-        )
+
+        answer = response.choices[0].message.content
+        input_tokens = response.usage.prompt_tokens
+        output_tokens = response.usage.completion_tokens
+
+        quality_score = self._heuristic_quality(message, answer, docs)
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        cost_usd = self._estimate_cost(input_tokens, output_tokens)
+
+        # ✅ update_current_observation vẫn dùng được qua get_client()
+        # if self.langfuse:
+        #     self.langfuse.update_current_observation(
+        #         metadata={"doc_count": len(docs), "query_preview": summarize_text(message)},
+        #         usage_details={"input": input_tokens, "output": output_tokens},
+        #     )
+        #     self.langfuse.flush()          # ✅ Flush để đảm bảo gửi lên
 
         metrics.record_request(
             latency_ms=latency_ms,
             cost_usd=cost_usd,
-            tokens_in=response.usage.input_tokens,
-            tokens_out=response.usage.output_tokens,
+            tokens_in=input_tokens,
+            tokens_out=output_tokens,
             quality_score=quality_score,
         )
 
         return AgentResult(
-            answer=response.text,
+            answer=answer,
             latency_ms=latency_ms,
-            tokens_in=response.usage.input_tokens,
-            tokens_out=response.usage.output_tokens,
+            tokens_in=input_tokens,
+            tokens_out=output_tokens,
             cost_usd=cost_usd,
             quality_score=quality_score,
         )

@@ -14,6 +14,7 @@ from .middleware import CorrelationIdMiddleware
 from .pii import hash_user_id, summarize_text
 from .schemas import ChatRequest, ChatResponse
 from .tracing import tracing_enabled
+from langfuse import get_client          # ✅ Đổi import
 
 configure_logging()
 log = get_logger()
@@ -44,7 +45,6 @@ async def metrics() -> dict:
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: Request, body: ChatRequest) -> ChatResponse:
-    # Enrich logs with request context (user_id_hash, session_id, feature, model, env)
     bind_contextvars(
         user_id_hash=hash_user_id(body.user_id),
         session_id=body.session_id,
@@ -52,7 +52,7 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
         model=getattr(body, "model", None),
         env=os.getenv("APP_ENV", "dev"),
     )
-    
+
     log.info(
         "request_received",
         service="api",
@@ -65,6 +65,12 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
             session_id=body.session_id,
             message=body.message,
         )
+
+        # ✅ Flush đúng cách với v4
+        lf = get_client()
+        if lf:
+            lf.flush()
+
         log.info(
             "response_sent",
             service="api",
@@ -83,7 +89,7 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
             cost_usd=result.cost_usd,
             quality_score=result.quality_score,
         )
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
         error_type = type(exc).__name__
         record_error(error_type)
         log.error(
@@ -113,3 +119,11 @@ async def disable_incident(name: str) -> JSONResponse:
         return JSONResponse({"ok": True, "incidents": status()})
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    # ✅ Flush đúng cách với v4
+    lf = get_client()
+    if lf:
+        lf.flush()
