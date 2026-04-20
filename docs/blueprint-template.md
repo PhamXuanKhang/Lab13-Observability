@@ -3,7 +3,7 @@
 > **Instruction**: Fill in all sections below. This report is designed to be parsed by an automated grading assistant. Ensure all tags (e.g., `[GROUP_NAME]`) are preserved.
 
 ## 1. Team Metadata
-- [GROUP_NAME]: Group [TODO: Fill group number]
+- [GROUP_NAME]: Group 6
 - [REPO_URL]: https://github.com/PhamXuanKhang/Lab13-Observability
 - [MEMBERS]:
   - Member A: Khang | Role: Logging & PII + Blueprint Lead
@@ -14,8 +14,8 @@
 ---
 
 ## 2. Group Performance (Auto-Verified)
-- [VALIDATE_LOGS_FINAL_SCORE]: /100
-- [TOTAL_TRACES_COUNT]: 
+- [VALIDATE_LOGS_FINAL_SCORE]: 100/100
+- [TOTAL_TRACES_COUNT]: 61
 - [PII_LEAKS_FOUND]: 
 
 ---
